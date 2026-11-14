@@ -18,6 +18,7 @@ struct AppConfig {
     int volume = 85;             // 0 - 100
     bool watch_enabled = true;   // Watch terminal/batch process exit globally
     std::string watch_processes; // Comma-separated process names
+    std::string language = "auto"; // "auto" | "zh" | "en"
     int min_process_ms = 1200;   // Ignore short-lived sub-shells
     int poll_interval_ms = 350;  // Process snapshot interval
     int idle_seconds = 10;       // Default idle threshold for `watch` / hooks

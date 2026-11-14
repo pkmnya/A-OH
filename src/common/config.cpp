@@ -1,4 +1,5 @@
 #include "common/config.hpp"
+#include "common/i18n.hpp"
 #include "common/utf8.hpp"
 
 #include <algorithm>
@@ -169,6 +170,7 @@ AppConfig load_config() {
             } catch (...) {}
         }
         else if (key == "volume") cfg.volume = parse_int(val, cfg.volume, 0, 100);
+        else if (key == "language") cfg.language = normalize_language(val);
         else if (key == "watch_enabled") cfg.watch_enabled = parse_bool(val, cfg.watch_enabled);
         else if (key == "watch_processes") cfg.watch_processes = val;
         else if (key == "min_process_ms") cfg.min_process_ms = parse_int(val, cfg.min_process_ms, 0, 600000);
@@ -205,6 +207,7 @@ bool save_config(const AppConfig& cfg) {
         ofs << "slot_" << i << "=" << cfg.random_slots[i] << "\n";
     }
     ofs << "volume=" << cfg.volume << "\n"
+        << "language=" << cfg.language << "\n"
         << "watch_enabled=" << (cfg.watch_enabled ? "true" : "false") << "\n"
         << "watch_processes=" << cfg.watch_processes << "\n"
         << "min_process_ms=" << cfg.min_process_ms << "\n"

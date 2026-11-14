@@ -1,5 +1,6 @@
 #include "audio/audio_engine.hpp"
 #include "common/config.hpp"
+#include "common/i18n.hpp"
 #include "common/utf8.hpp"
 #include "daemon/daemon.hpp"
 #include "platform/platform.hpp"
@@ -19,44 +20,71 @@
 
 namespace {
 
-void print_help() {
-    std::cout
-        << "A-OH - 跨平台终端/批处理退出 & 闲置音效助手 (支持 MP3 常驻内存、打断不重叠)\n\n"
-        << "用法:\n"
-        << "  a-oh daemon [--ui]            启动后台监听守护进程 (Windows 带托盘图标)\n"
-        << "  a-oh ui                       打开音效设置网页 (若未运行后台则自动启动)\n"
-        << "  a-oh play [exit|idle]         触发一次音效 (通知后台打断当前音并播放)\n"
-        << "  a-oh stop                     立即打断静音\n"
-        << "  a-oh watch [--idle N] -- cmd  包装运行命令/批处理: 输出闲置 N 秒响 idle, 结束响 exit\n"
-        << "  a-oh config show              查看当前配置与路径\n"
-        << "  a-oh config set-mp3 <exit|idle> <path>  设置单个 MP3 并常驻内存\n"
-        << "  a-oh config use-random <exit|idle>      开启从随机槽位池抽取播放\n"
-        << "  a-oh config use-ding <exit|idle>        恢复内置清脆滴滴声\n"
-        << "  a-oh config set-slot <1..N> <path>      设置第 N 个随机槽位的 MP3\n"
-        << "  a-oh config add-slot [path]             新增一个随机槽位\n"
-        << "  a-oh config remove-slot [1..N]          删除指定(或最后)随机槽位\n"
-        << "  a-oh config volume <0-100>              设置全局音量\n"
-        << "  a-oh autostart <on|off|status>          开启/关闭/查看开机自启动\n"
-        << "  a-oh hook <pwsh|bash|zsh>               生成终端闲置/退出 Shell 钩子脚本\n"
-        << "  a-oh status                   查看后台守护进程与内存缓存状态\n"
-        << "  a-oh quit                     退出后台守护进程\n";
+void print_help(bool zh) {
+    if (zh) {
+        std::cout
+            << "A-OH - 跨平台终端/批处理退出 & 闲置音效助手 (支持 MP3 常驻内存、打断不重叠)\n\n"
+            << "用法:\n"
+            << "  a-oh daemon [--ui]                    启动后台监听守护进程 (Windows 带托盘图标)\n"
+            << "  a-oh ui                               打开音效设置网页 (若未运行后台则自动启动)\n"
+            << "  a-oh play [exit|idle]                 触发一次音效 (通知后台打断当前音并播放)\n"
+            << "  a-oh stop                             立即打断静音\n"
+            << "  a-oh watch [--idle N] -- cmd          包装运行命令/批处理: 输出闲置 N 秒响 idle, 结束响 exit\n"
+            << "  a-oh config show                      查看当前配置与路径\n"
+            << "  a-oh config set-mp3 <exit|idle> <path> 设置单个 MP3 并常驻内存\n"
+            << "  a-oh config use-random <exit|idle>    开启从随机槽位池抽取播放\n"
+            << "  a-oh config use-ding <exit|idle>      恢复内置清脆滴滴声\n"
+            << "  a-oh config set-slot <1..N> <path>    设置第 N 个随机槽位的 MP3\n"
+            << "  a-oh config add-slot [path]           新增一个随机槽位\n"
+            << "  a-oh config remove-slot [1..N]        删除指定(或最后)随机槽位\n"
+            << "  a-oh config volume <0-100>            设置全局音量\n"
+            << "  a-oh config language <auto|zh|en>     设置界面语言 (auto=跟随系统 / zh=中文 / en=English)\n"
+            << "  a-oh autostart <on|off|status>        开启/关闭/查看开机自启动\n"
+            << "  a-oh hook <pwsh|bash|zsh>             生成终端闲置/退出 Shell 钩子脚本\n"
+            << "  a-oh status                           查看后台守护进程与内存缓存状态\n"
+            << "  a-oh quit                             退出后台守护进程\n";
+    } else {
+        std::cout
+            << "A-OH - Cross-platform terminal exit & idle sound companion (in-memory MP3 cache, instant interrupt)\n\n"
+            << "Usage:\n"
+            << "  a-oh daemon [--ui]                    Start background daemon (with Windows tray icon)\n"
+            << "  a-oh ui                               Open settings Web UI (auto-starts daemon if needed)\n"
+            << "  a-oh play [exit|idle]                 Play exit or idle sound immediately\n"
+            << "  a-oh stop                             Stop playback immediately\n"
+            << "  a-oh watch [--idle N] -- cmd          Wrap a command: play idle after N sec of silence, exit on finish\n"
+            << "  a-oh config show                      Show current config and paths\n"
+            << "  a-oh config set-mp3 <exit|idle> <path> Set a custom MP3 file (cached in memory)\n"
+            << "  a-oh config use-random <exit|idle>    Use random slot pool for exit or idle\n"
+            << "  a-oh config use-ding <exit|idle>      Restore built-in ding sound\n"
+            << "  a-oh config set-slot <1..N> <path>    Set MP3 for random slot N\n"
+            << "  a-oh config add-slot [path]           Add a new random slot\n"
+            << "  a-oh config remove-slot [1..N]        Remove slot N (or last slot)\n"
+            << "  a-oh config volume <0-100>            Set master volume\n"
+            << "  a-oh config language <auto|zh|en>     Set UI language (auto=System / zh=中文 / en=English)\n"
+            << "  a-oh autostart <on|off|status>        Enable/disable/check launch at login\n"
+            << "  a-oh hook <pwsh|bash|zsh>             Print shell integration hook script\n"
+            << "  a-oh status                           Show daemon and in-memory cache status\n"
+            << "  a-oh quit                             Stop background daemon\n";
+    }
 }
 
 int dispatch(const std::vector<std::string>& args) {
+    aoh::AppConfig cfg = aoh::load_config();
+    const bool zh = aoh::is_zh_language(cfg.language);
+
     if (args.empty()) {
 #ifdef AOH_GUI_APP
         return aoh::run_daemon(false);
 #else
-        print_help();
+        print_help(zh);
         return 0;
 #endif
     }
 
     const std::string& cmd = args[0];
-    aoh::AppConfig cfg = aoh::load_config();
 
     if (cmd == "-h" || cmd == "--help" || cmd == "help") {
-        print_help();
+        print_help(zh);
         return 0;
     }
 
@@ -147,11 +175,21 @@ int dispatch(const std::vector<std::string>& args) {
                 std::cout << "  [" << (i + 1) << "] " << cfg.random_slots[i] << "\n";
             }
             std::cout << "volume: " << cfg.volume << "\n"
+                      << "language: " << cfg.language << " (resolved: " << (zh ? "zh" : "en") << ")\n"
                       << "watch_enabled: " << (cfg.watch_enabled ? "true" : "false") << "\n"
                       << "watch_processes: " << cfg.watch_processes << "\n"
                       << "min_process_ms: " << cfg.min_process_ms << "\n"
                       << "idle_seconds: " << cfg.idle_seconds << "\n"
                       << "autostart: " << (aoh::is_autostart_enabled() ? "ON" : "OFF") << "\n";
+            return 0;
+        }
+        if (sub == "language" && args.size() >= 3) {
+            cfg.language = aoh::normalize_language(args[2]);
+            aoh::save_config(cfg);
+            std::string reply;
+            aoh::send_ipc_command(cfg.ipc_port, "RELOAD", reply);
+            std::cout << "Updated language -> " << cfg.language
+                      << " (resolved: " << (aoh::is_zh_language(cfg.language) ? "zh" : "en") << ")\n";
             return 0;
         }
         if (sub == "use-random" && args.size() >= 3) {
@@ -240,7 +278,7 @@ int dispatch(const std::vector<std::string>& args) {
             std::cout << "Volume set to " << cfg.volume << "\n";
             return 0;
         }
-        print_help();
+        print_help(zh);
         return 1;
     }
 
@@ -268,7 +306,7 @@ int dispatch(const std::vector<std::string>& args) {
     }
 
     std::cerr << "Unknown command: " << cmd << "\n";
-    print_help();
+    print_help(zh);
     return 1;
 }
 

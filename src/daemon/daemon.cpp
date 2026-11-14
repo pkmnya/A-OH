@@ -1,5 +1,6 @@
 #include "daemon/daemon.hpp"
 #include "audio/audio_engine.hpp"
+#include "common/i18n.hpp"
 #include "platform/platform.hpp"
 
 #ifdef _WIN32
@@ -190,97 +191,108 @@ const char* kWebUiHtml = R"HTML(<!doctype html>
 </head>
 <body>
 <div class="wrap">
-  <h1>A-OH 终端 / 批处理音效助手</h1>
-  <div class="sub">系统原生 MP3 播放 · 选中后常驻内存不释放 · 多次触发打断不重叠</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h1 id="tTitle">A-OH 终端 / 批处理音效助手</h1>
+      <div class="sub" id="tSub">系统原生 MP3 播放 · 选中后常驻内存不释放 · 多次触发打断不重叠</div>
+    </div>
+    <div style="min-width:150px;">
+      <select id="language" onchange="onLangChange()" aria-label="Language">
+        <option value="auto" id="optLangAuto">语言: 自动 (Auto)</option>
+        <option value="zh">简体中文</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  </div>
 
   <div class="status-bar">
-    <span class="pill" id="stBackend">音频后端: 加载中...</span>
-    <span class="pill" id="stRam">内存常驻缓存: 0 个 (0 KB)</span>
+    <span class="pill" id="stBackend">...</span>
+    <span class="pill" id="stRam">...</span>
     <span class="pill" id="stErr" style="display:none"></span>
   </div>
 
   <div class="card">
-    <h2>1. 批处理 / 终端退出音效 (Exit)</h2>
+    <h2 id="tSecExit">1. 批处理 / 终端退出音效 (Exit)</h2>
     <div class="row-2">
-      <label>播放模式</label>
+      <label id="tExitModeLbl">播放模式</label>
       <select id="exit_mode">
-        <option value="random">随机从下方音效槽抽取 (Random)</option>
-        <option value="ding">内置清脆滴滴声 (零依赖)</option>
-        <option value="mp3">指定单个 MP3 / WAV (常驻内存)</option>
+        <option value="random" id="optExitRandom">随机从下方音效槽抽取 (Random)</option>
+        <option value="ding" id="optExitDing">内置清脆滴滴声 (零依赖)</option>
+        <option value="mp3" id="optExitMp3">指定单个 MP3 / WAV (常驻内存)</option>
       </select>
     </div>
     <div class="row">
-      <label>指定单个 MP3</label>
+      <label id="tExitSingleLbl">指定单个 MP3</label>
       <input type="text" id="exit_mp3_path" placeholder="仅在[指定单个 MP3]模式下使用" />
-      <button type="button" onclick="pickSingleFile('exit_mp3_path')">浏览...</button>
+      <button type="button" id="btnBrowseExit" onclick="pickSingleFile('exit_mp3_path')">浏览...</button>
     </div>
     <div class="actions">
-      <button class="ok" type="button" onclick="testPlay('exit')">试听退出音效 (连续点可测试打断/随机)</button>
+      <button class="ok" type="button" id="btnTestExit" onclick="testPlay('exit')">试听退出音效 (连续点可测试打断/随机)</button>
     </div>
   </div>
 
   <div class="card">
-    <h2>2. 终端闲置音效 (Idle)</h2>
+    <h2 id="tSecIdle">2. 终端闲置音效 (Idle)</h2>
     <div class="row-2">
-      <label>播放模式</label>
+      <label id="tIdleModeLbl">播放模式</label>
       <select id="idle_mode">
-        <option value="random">随机从下方音效槽抽取 (Random)</option>
-        <option value="ding">内置清脆滴滴声 (零依赖)</option>
-        <option value="mp3">指定单个 MP3 / WAV (常驻内存)</option>
+        <option value="random" id="optIdleRandom">随机从下方音效槽抽取 (Random)</option>
+        <option value="ding" id="optIdleDing">内置清脆滴滴声 (零依赖)</option>
+        <option value="mp3" id="optIdleMp3">指定单个 MP3 / WAV (常驻内存)</option>
       </select>
     </div>
     <div class="row">
-      <label>指定单个 MP3</label>
+      <label id="tIdleSingleLbl">指定单个 MP3</label>
       <input type="text" id="idle_mp3_path" placeholder="仅在[指定单个 MP3]模式下使用" />
-      <button type="button" onclick="pickSingleFile('idle_mp3_path')">浏览...</button>
+      <button type="button" id="btnBrowseIdle" onclick="pickSingleFile('idle_mp3_path')">浏览...</button>
     </div>
     <div class="actions">
-      <button class="ok" type="button" onclick="testPlay('idle')">试听闲置音效 (连续点可测试打断/随机)</button>
-      <button type="button" onclick="stopPlay()">立即静音打断</button>
+      <button class="ok" type="button" id="btnTestIdle" onclick="testPlay('idle')">试听闲置音效 (连续点可测试打断/随机)</button>
+      <button type="button" id="btnStop" onclick="stopPlay()">立即静音打断</button>
     </div>
   </div>
 
   <div class="card">
-    <h2>3. 随机音效槽位池 (默认 5 个，可增减 · 选中即常驻内存)</h2>
+    <h2 id="tSecPool">3. 随机音效槽位池 (默认 5 个，可增减 · 选中即常驻内存)</h2>
     <div id="slotList"></div>
     <div class="actions" style="margin-top:10px;">
-      <button type="button" onclick="addSlot()">+ 添加槽位</button>
-      <button type="button" onclick="removeLastSlot()">- 减少最后槽位</button>
-      <button type="button" onclick="resetBuiltinSlots()">恢复内置 1~5 号</button>
-      <button class="primary" type="button" onclick="saveConfig()">保存槽位并加载到内存</button>
+      <button type="button" id="btnAddSlot" onclick="addSlot()">+ 添加槽位</button>
+      <button type="button" id="btnDelLast" onclick="removeLastSlot()">- 减少最后槽位</button>
+      <button type="button" id="btnResetSlots" onclick="resetBuiltinSlots()">恢复内置 1~5 号</button>
+      <button class="primary" type="button" id="btnSaveSlots" onclick="saveConfig()">保存槽位并加载到内存</button>
     </div>
   </div>
 
   <div class="card">
-    <h2>4. 监听与系统设置</h2>
+    <h2 id="tSecSys">4. 监听与系统设置</h2>
     <div class="row">
-      <label>全局音量 (<span id="volText">85</span>%)</label>
+      <label><span id="tVolLbl">全局音量</span> (<span id="volText">85</span>%)</label>
       <input type="range" id="volume" min="0" max="100" value="85" oninput="document.getElementById('volText').textContent=this.value" />
       <span></span>
     </div>
     <div class="row-2">
-      <label>全局监听终端退出</label>
-      <div><input type="checkbox" id="watch_enabled" /> <span style="font-size:13px;color:var(--muted)">后台自动监控下列终端/批处理进程退出</span></div>
+      <label id="tWatchLbl">全局监听终端退出</label>
+      <div><input type="checkbox" id="watch_enabled" /> <span id="tWatchHint" style="font-size:13px;color:var(--muted)">后台自动监控下列终端/批处理进程退出</span></div>
     </div>
     <div class="row-2">
-      <label>监听进程名 (逗号分隔)</label>
+      <label id="tProcsLbl">监听进程名 (逗号分隔)</label>
       <input type="text" id="watch_processes" placeholder="cmd.exe,powershell.exe,pwsh.exe" />
     </div>
     <div class="row-2">
-      <label>最短存活过滤 (毫秒)</label>
+      <label id="tMinMsLbl">最短存活过滤 (毫秒)</label>
       <input type="number" id="min_process_ms" min="0" max="600000" />
     </div>
     <div class="row-2">
-      <label>默认闲置阈值 (秒)</label>
+      <label id="tIdleSecLbl">默认闲置阈值 (秒)</label>
       <input type="number" id="idle_seconds" min="1" max="86400" />
     </div>
     <div class="row-2">
-      <label>开机自启动</label>
-      <div><input type="checkbox" id="autostart" /> <span style="font-size:13px;color:var(--muted)">登录系统时自动后台启动 A-OH</span></div>
+      <label id="tAutoLbl">开机自启动</label>
+      <div><input type="checkbox" id="autostart" /> <span id="tAutoHint" style="font-size:13px;color:var(--muted)">登录系统时自动后台启动 A-OH</span></div>
     </div>
     <div class="actions" style="margin-top:14px;">
-      <button class="primary" type="button" onclick="saveConfig()">保存配置并常驻内存</button>
-      <button type="button" onclick="loadState()">刷新状态</button>
+      <button class="primary" type="button" id="btnSaveAll" onclick="saveConfig()">保存配置并常驻内存</button>
+      <button type="button" id="btnRefresh" onclick="loadState()">刷新状态</button>
     </div>
   </div>
 </div>
@@ -288,7 +300,165 @@ const char* kWebUiHtml = R"HTML(<!doctype html>
 <div class="toast" id="toast"></div>
 
 <script>
+const I18N = {
+  zh: {
+    pageTitle: 'A-OH 终端音效设置',
+    title: 'A-OH 终端 / 批处理音效助手',
+    sub: '系统原生 MP3 播放 · 选中后常驻内存不释放 · 多次触发打断不重叠',
+    langAuto: '语言: 自动 (Auto)',
+    secExit: '1. 批处理 / 终端退出音效 (Exit)',
+    secIdle: '2. 终端闲置音效 (Idle)',
+    secPool: '3. 随机音效槽位池 (默认 5 个，可增减 · 选中即常驻内存)',
+    secSys: '4. 监听与系统设置',
+    modeLbl: '播放模式',
+    optRandom: '随机从下方音效槽抽取 (Random)',
+    optDing: '内置清脆滴滴声 (零依赖)',
+    optMp3: '指定单个 MP3 / WAV (常驻内存)',
+    singleLbl: '指定单个 MP3',
+    singlePh: '仅在[指定单个 MP3]模式下使用',
+    browse: '浏览...',
+    testExit: '试听退出音效 (连续点可测试打断/随机)',
+    testIdle: '试听闲置音效 (连续点可测试打断/随机)',
+    stop: '立即静音打断',
+    addSlot: '+ 添加槽位',
+    delLast: '- 减少最后槽位',
+    resetSlots: '恢复内置 1~5 号',
+    saveSlots: '保存槽位并加载到内存',
+    volLbl: '全局音量',
+    watchLbl: '全局监听终端退出',
+    watchHint: '后台自动监控下列终端/批处理进程退出',
+    procsLbl: '监听进程名 (逗号分隔)',
+    minMsLbl: '最短存活过滤 (毫秒)',
+    idleSecLbl: '默认闲置阈值 (秒)',
+    autoLbl: '开机自启动',
+    autoHint: '登录系统时自动后台启动 A-OH',
+    saveAll: '保存配置并常驻内存',
+    refresh: '刷新状态',
+    slotLabel: (n) => `槽位 #${n}`,
+    slotPh: (n) => `选择第 ${n} 个随机 MP3/WAV 文件`,
+    playSlot: '试听',
+    delSlot: '删除',
+    backendPrefix: '音频后端: ',
+    ramText: (cnt, kb) => `内存常驻缓存: ${cnt} 个 (${kb} KB)`,
+    errPrefix: '提示: ',
+    savedOk: '已保存，所有选中 MP3 已常驻内存',
+    saveFail: '保存失败: ',
+    pickPrompt: '请在系统窗口中选择 MP3 / 音频文件...',
+    pickSlotPrompt: (n) => `请选择槽位 #${n} 的音频文件...`
+  },
+  en: {
+    pageTitle: 'A-OH Sound Settings',
+    title: 'A-OH Terminal & Batch Sound Notifier',
+    sub: 'Native MP3 playback · Resident in RAM · Interruptible non-overlapping audio',
+    langAuto: 'Language: Auto',
+    secExit: '1. Terminal / Batch Exit Sound (Exit)',
+    secIdle: '2. Terminal Idle Sound (Idle)',
+    secPool: '3. Random Sound Slots (5 by default, add/remove freely · kept in RAM)',
+    secSys: '4. Monitoring & System Settings',
+    modeLbl: 'Playback Mode',
+    optRandom: 'Random from Sound Slots below',
+    optDing: 'Built-in Crisp Ding (Zero external files)',
+    optMp3: 'Single MP3 / WAV File (Resident in RAM)',
+    singleLbl: 'Single MP3 Path',
+    singlePh: 'Used only in Single MP3 mode',
+    browse: 'Browse...',
+    testExit: 'Test Exit Sound (Click rapidly to test interrupt/random)',
+    testIdle: 'Test Idle Sound (Click rapidly to test interrupt/random)',
+    stop: 'Stop Audio',
+    addSlot: '+ Add Slot',
+    delLast: '- Remove Last',
+    resetSlots: 'Reset Built-in 1~5',
+    saveSlots: 'Save Slots & Load to RAM',
+    volLbl: 'Master Volume',
+    watchLbl: 'Watch Terminal Exit',
+    watchHint: 'Monitor listed terminal/batch processes in background',
+    procsLbl: 'Process Names (CSV)',
+    minMsLbl: 'Min Lifetime Filter (ms)',
+    idleSecLbl: 'Default Idle Timeout (s)',
+    autoLbl: 'Launch at Startup',
+    autoHint: 'Automatically start A-OH in background on login',
+    saveAll: 'Save Settings & Cache in RAM',
+    refresh: 'Refresh',
+    slotLabel: (n) => `Slot #${n}`,
+    slotPh: (n) => `Choose MP3/WAV for random slot #${n}`,
+    playSlot: 'Play',
+    delSlot: 'Remove',
+    backendPrefix: 'Audio Backend: ',
+    ramText: (cnt, kb) => `RAM Cache: ${cnt} file(s) (${kb} KB)`,
+    errPrefix: 'Note: ',
+    savedOk: 'Saved! Selected MP3 files are cached in RAM',
+    saveFail: 'Save failed: ',
+    pickPrompt: 'Please choose an MP3/audio file in the system dialog...',
+    pickSlotPrompt: (n) => `Choose audio file for Slot #${n}...`
+  }
+};
+
 let currentSlots = ['', '', '', '', ''];
+let lastState = null;
+
+function activeLangKey() {
+  const sel = document.getElementById('language').value;
+  if (sel === 'zh' || sel === 'en') return sel;
+  if (lastState && (lastState.resolved_lang === 'zh' || lastState.resolved_lang === 'en')) {
+    return lastState.resolved_lang;
+  }
+  return (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+function tr() { return I18N[activeLangKey()]; }
+
+function applyI18n() {
+  const t = tr();
+  document.title = t.pageTitle;
+  document.documentElement.lang = activeLangKey() === 'zh' ? 'zh-CN' : 'en';
+  document.getElementById('tTitle').textContent = t.title;
+  document.getElementById('tSub').textContent = t.sub;
+  document.getElementById('optLangAuto').textContent = t.langAuto;
+  document.getElementById('tSecExit').textContent = t.secExit;
+  document.getElementById('tSecIdle').textContent = t.secIdle;
+  document.getElementById('tSecPool').textContent = t.secPool;
+  document.getElementById('tSecSys').textContent = t.secSys;
+  document.getElementById('tExitModeLbl').textContent = t.modeLbl;
+  document.getElementById('tIdleModeLbl').textContent = t.modeLbl;
+  document.getElementById('optExitRandom').textContent = t.optRandom;
+  document.getElementById('optIdleRandom').textContent = t.optRandom;
+  document.getElementById('optExitDing').textContent = t.optDing;
+  document.getElementById('optIdleDing').textContent = t.optDing;
+  document.getElementById('optExitMp3').textContent = t.optMp3;
+  document.getElementById('optIdleMp3').textContent = t.optMp3;
+  document.getElementById('tExitSingleLbl').textContent = t.singleLbl;
+  document.getElementById('tIdleSingleLbl').textContent = t.singleLbl;
+  document.getElementById('exit_mp3_path').placeholder = t.singlePh;
+  document.getElementById('idle_mp3_path').placeholder = t.singlePh;
+  document.getElementById('btnBrowseExit').textContent = t.browse;
+  document.getElementById('btnBrowseIdle').textContent = t.browse;
+  document.getElementById('btnTestExit').textContent = t.testExit;
+  document.getElementById('btnTestIdle').textContent = t.testIdle;
+  document.getElementById('btnStop').textContent = t.stop;
+  document.getElementById('btnAddSlot').textContent = t.addSlot;
+  document.getElementById('btnDelLast').textContent = t.delLast;
+  document.getElementById('btnResetSlots').textContent = t.resetSlots;
+  document.getElementById('btnSaveSlots').textContent = t.saveSlots;
+  document.getElementById('tVolLbl').textContent = t.volLbl;
+  document.getElementById('tWatchLbl').textContent = t.watchLbl;
+  document.getElementById('tWatchHint').textContent = t.watchHint;
+  document.getElementById('tProcsLbl').textContent = t.procsLbl;
+  document.getElementById('tMinMsLbl').textContent = t.minMsLbl;
+  document.getElementById('tIdleSecLbl').textContent = t.idleSecLbl;
+  document.getElementById('tAutoLbl').textContent = t.autoLbl;
+  document.getElementById('tAutoHint').textContent = t.autoHint;
+  document.getElementById('btnSaveAll').textContent = t.saveAll;
+  document.getElementById('btnRefresh').textContent = t.refresh;
+  if (lastState) {
+    document.getElementById('stBackend').textContent = t.backendPrefix + lastState.backend;
+    const kb = Math.round((lastState.cached_bytes || 0) / 1024);
+    document.getElementById('stRam').textContent = t.ramText(lastState.cached_count, kb);
+    const errEl = document.getElementById('stErr');
+    errEl.textContent = lastState.last_error ? (t.errPrefix + lastState.last_error) : '';
+    errEl.style.display = lastState.last_error ? 'inline-block' : 'none';
+  }
+  renderSlots();
+}
 
 function showToast(msg) {
   const el = document.getElementById('toast');
@@ -299,6 +469,7 @@ function showToast(msg) {
 }
 
 function renderSlots() {
+  const t = tr();
   const box = document.getElementById('slotList');
   box.innerHTML = '';
   currentSlots.forEach((val, idx) => {
@@ -307,28 +478,28 @@ function renderSlots() {
     row.style.gridTemplateColumns = '90px 1fr auto auto auto';
 
     const lbl = document.createElement('label');
-    lbl.textContent = `槽位 #${idx + 1}`;
+    lbl.textContent = t.slotLabel(idx + 1);
 
     const inp = document.createElement('input');
     inp.type = 'text';
     inp.value = val || '';
-    inp.placeholder = `选择第 ${idx + 1} 个随机 MP3/WAV 文件`;
+    inp.placeholder = t.slotPh(idx + 1);
     inp.oninput = () => { currentSlots[idx] = inp.value; };
 
     const btnPick = document.createElement('button');
     btnPick.type = 'button';
-    btnPick.textContent = '浏览...';
+    btnPick.textContent = t.browse;
     btnPick.onclick = () => pickSlotFile(idx);
 
     const btnPlay = document.createElement('button');
     btnPlay.type = 'button';
     btnPlay.className = 'ok';
-    btnPlay.textContent = '试听';
+    btnPlay.textContent = t.playSlot;
     btnPlay.onclick = () => testSlot(idx);
 
     const btnDel = document.createElement('button');
     btnDel.type = 'button';
-    btnDel.textContent = '删除';
+    btnDel.textContent = t.delSlot;
     btnDel.onclick = () => removeSlot(idx);
 
     row.append(lbl, inp, btnPick, btnPlay, btnDel);
@@ -368,29 +539,30 @@ function resetBuiltinSlots() {
   renderSlots();
 }
 
+async function onLangChange() {
+  applyI18n();
+  await saveConfig();
+}
+
 async function loadState() {
   const r = await fetch('/api/state');
   const d = await r.json();
+  lastState = d;
   for (const k of ['exit_mode','exit_mp3_path','idle_mode','idle_mp3_path',
-                   'volume','watch_processes','min_process_ms','idle_seconds']) {
+                   'volume','watch_processes','min_process_ms','idle_seconds','language']) {
     const el = document.getElementById(k);
     if (el && d[k] !== undefined) el.value = d[k];
   }
   currentSlots = Array.isArray(d.slots) && d.slots.length > 0 ? d.slots.slice() : ['', '', '', '', ''];
-  renderSlots();
   document.getElementById('volText').textContent = d.volume;
   document.getElementById('watch_enabled').checked = !!d.watch_enabled;
   document.getElementById('autostart').checked = !!d.autostart;
-  document.getElementById('stBackend').textContent = '音频后端: ' + d.backend;
-  const kb = Math.round((d.cached_bytes || 0) / 1024);
-  document.getElementById('stRam').textContent = `内存常驻缓存: ${d.cached_count} 个 (${kb} KB)`;
-  const errEl = document.getElementById('stErr');
-  errEl.textContent = d.last_error ? ('提示: ' + d.last_error) : '';
-  errEl.style.display = d.last_error ? 'inline-block' : 'none';
+  applyI18n();
 }
 
 async function saveConfig() {
   const params = new URLSearchParams({
+    language: document.getElementById('language').value,
     exit_mode: document.getElementById('exit_mode').value,
     exit_mp3_path: document.getElementById('exit_mp3_path').value,
     idle_mode: document.getElementById('idle_mode').value,
@@ -406,12 +578,13 @@ async function saveConfig() {
   currentSlots.forEach((p, i) => params.set(`slot_${i}`, p || ''));
   const r = await fetch('/api/save', { method: 'POST', body: params });
   const d = await r.json();
-  showToast(d.ok ? '已保存，所有选中 MP3 已常驻内存' : ('保存失败: ' + (d.error || '')));
+  const t = tr();
+  showToast(d.ok ? t.savedOk : (t.saveFail + (d.error || '')));
   await loadState();
 }
 
 async function pickSingleFile(targetId) {
-  showToast('请在系统窗口中选择 MP3 / 音频文件...');
+  showToast(tr().pickPrompt);
   const r = await fetch('/api/pick?kind=mp3');
   const d = await r.json();
   if (d.path) {
@@ -422,7 +595,7 @@ async function pickSingleFile(targetId) {
 }
 
 async function pickSlotFile(idx) {
-  showToast(`请选择槽位 #${idx + 1} 的音频文件...`);
+  showToast(tr().pickSlotPrompt(idx + 1));
   const r = await fetch('/api/pick?kind=mp3');
   const d = await r.json();
   if (d.path) {
@@ -478,6 +651,8 @@ std::string build_state_json(DaemonState& st) {
         oss << "\"" << json_escape(cfg_copy.random_slots[i]) << "\"";
     }
     oss << "],"
+        << "\"language\":\"" << json_escape(cfg_copy.language) << "\","
+        << "\"resolved_lang\":\"" << (is_zh_language(cfg_copy.language) ? "zh" : "en") << "\","
         << "\"volume\":" << cfg_copy.volume << ","
         << "\"watch_enabled\":" << (cfg_copy.watch_enabled ? "true" : "false") << ","
         << "\"watch_processes\":\"" << json_escape(cfg_copy.watch_processes) << "\","
@@ -583,7 +758,13 @@ void handle_http_client(SOCKET client, DaemonState& st) {
         st.audio.stop();
         send_resp("200 OK", "application/json; charset=utf-8", "{\"ok\":true}");
     } else if (path == "/api/pick") {
-        std::string picked = pick_file_dialog("选择 MP3/音频文件 (将读取并常驻内存)", "mp3");
+        bool zh = false;
+        {
+            std::lock_guard<std::mutex> lk(st.mu);
+            zh = is_zh_language(st.cfg.language);
+        }
+        std::string picked = pick_file_dialog(
+            zh ? "选择 MP3/音频文件 (将读取并常驻内存)" : "Select MP3 / Audio File (Cached in RAM)", "mp3");
         send_resp("200 OK", "application/json; charset=utf-8",
                   "{\"path\":\"" + json_escape(picked) + "\"}");
     } else if (path == "/api/save" && method == "POST") {
@@ -595,6 +776,7 @@ void handle_http_client(SOCKET client, DaemonState& st) {
         {
             std::lock_guard<std::mutex> lk(st.mu);
             updated = st.cfg;
+            if (form.count("language")) updated.language = normalize_language(form["language"]);
             if (form.count("exit_mode")) updated.exit_sound.mode = norm_mode(form["exit_mode"]);
             if (form.count("exit_mp3_path")) updated.exit_sound.mp3_path = form["exit_mp3_path"];
             if (form.count("idle_mode")) updated.idle_sound.mode = norm_mode(form["idle_mode"]);
@@ -887,7 +1069,13 @@ int run_daemon(bool open_ui_on_start) {
         open_url_in_browser("http://127.0.0.1:" + std::to_string(st.cfg.web_port));
     };
     cb.on_pick_exit_mp3 = [&]() {
-        std::string p = pick_file_dialog("选择批处理/终端退出 MP3 (将常驻内存)", "mp3");
+        bool zh = false;
+        {
+            std::lock_guard<std::mutex> lk(st.mu);
+            zh = is_zh_language(st.cfg.language);
+        }
+        std::string p = pick_file_dialog(
+            zh ? "选择批处理/终端退出 MP3 (将常驻内存)" : "Select Exit MP3 (Cached in RAM)", "mp3");
         if (!p.empty()) {
             AppConfig c;
             {
@@ -902,7 +1090,13 @@ int run_daemon(bool open_ui_on_start) {
         }
     };
     cb.on_pick_idle_mp3 = [&]() {
-        std::string p = pick_file_dialog("选择终端闲置 MP3 (将常驻内存)", "mp3");
+        bool zh = false;
+        {
+            std::lock_guard<std::mutex> lk(st.mu);
+            zh = is_zh_language(st.cfg.language);
+        }
+        std::string p = pick_file_dialog(
+            zh ? "选择终端闲置 MP3 (将常驻内存)" : "Select Idle MP3 (Cached in RAM)", "mp3");
         if (!p.empty()) {
             AppConfig c;
             {
@@ -949,6 +1143,10 @@ int run_daemon(bool open_ui_on_start) {
     cb.on_toggle_autostart = []() {
         std::string err;
         set_autostart(!is_autostart_enabled(), err);
+    };
+    cb.is_zh = [&]() {
+        std::lock_guard<std::mutex> lk(st.mu);
+        return is_zh_language(st.cfg.language);
     };
     cb.on_quit = [&]() {
         st.running.store(false, std::memory_order_release);

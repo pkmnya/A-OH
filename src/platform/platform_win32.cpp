@@ -43,6 +43,7 @@ UINT g_taskbar_created_msg = 0;
 NOTIFYICONDATAW g_nid = {};
 
 void add_tray_icon(HWND hwnd) {
+    bool zh = (g_tray_cb && g_tray_cb->is_zh) ? g_tray_cb->is_zh() : (PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE);
     g_nid = {};
     g_nid.cbSize = sizeof(NOTIFYICONDATAW);
     g_nid.hWnd = hwnd;
@@ -50,7 +51,7 @@ void add_tray_icon(HWND hwnd) {
     g_nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     g_nid.uCallbackMessage = WM_TRAYICON;
     g_nid.hIcon = LoadIconW(nullptr, IDI_INFORMATION);
-    lstrcpynW(g_nid.szTip, L"A-OH 终端音效助手 (右键设置)", ARRAYSIZE(g_nid.szTip));
+    lstrcpynW(g_nid.szTip, zh ? L"A-OH 终端音效助手 (右键设置)" : L"A-OH Terminal Sound (Right-click)", ARRAYSIZE(g_nid.szTip));
     Shell_NotifyIconW(NIM_ADD, &g_nid);
 }
 
@@ -67,19 +68,28 @@ LRESULT CALLBACK tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
             GetCursorPos(&pt);
             HMENU menu = CreatePopupMenu();
             if (menu && g_tray_cb) {
-                AppendMenuW(menu, MF_STRING, ID_TRAY_OPEN_SETTINGS, L"打开音效设置网页 (&S)");
+                bool zh = g_tray_cb->is_zh ? g_tray_cb->is_zh() : (PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE);
+                AppendMenuW(menu, MF_STRING, ID_TRAY_OPEN_SETTINGS,
+                            zh ? L"打开音效设置网页 (&S)" : L"Open Settings Web UI (&S)");
                 AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-                AppendMenuW(menu, MF_STRING, ID_TRAY_PICK_EXIT_MP3, L"选择[退出] MP3 文件...");
-                AppendMenuW(menu, MF_STRING, ID_TRAY_PICK_IDLE_MP3, L"选择[闲置] MP3 文件...");
-                AppendMenuW(menu, MF_STRING, ID_TRAY_TEST_EXIT, L"试听[退出]音效 (打断不重叠)");
-                AppendMenuW(menu, MF_STRING, ID_TRAY_TEST_IDLE, L"试听[闲置]音效 (打断不重叠)");
+                AppendMenuW(menu, MF_STRING, ID_TRAY_PICK_EXIT_MP3,
+                            zh ? L"选择[退出] MP3 文件..." : L"Select Exit MP3...");
+                AppendMenuW(menu, MF_STRING, ID_TRAY_PICK_IDLE_MP3,
+                            zh ? L"选择[闲置] MP3 文件..." : L"Select Idle MP3...");
+                AppendMenuW(menu, MF_STRING, ID_TRAY_TEST_EXIT,
+                            zh ? L"试听[退出]音效 (打断不重叠)" : L"Test Exit Sound (Interrupt)");
+                AppendMenuW(menu, MF_STRING, ID_TRAY_TEST_IDLE,
+                            zh ? L"试听[闲置]音效 (打断不重叠)" : L"Test Idle Sound (Interrupt)");
                 AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
                 UINT watch_flags = MF_STRING | (g_tray_cb->is_watch_enabled && g_tray_cb->is_watch_enabled() ? MF_CHECKED : MF_UNCHECKED);
                 UINT auto_flags = MF_STRING | (g_tray_cb->is_autostart_enabled && g_tray_cb->is_autostart_enabled() ? MF_CHECKED : MF_UNCHECKED);
-                AppendMenuW(menu, watch_flags, ID_TRAY_TOGGLE_WATCH, L"监听批处理/终端退出");
-                AppendMenuW(menu, auto_flags, ID_TRAY_TOGGLE_AUTOSTART, L"开机自启动");
+                AppendMenuW(menu, watch_flags, ID_TRAY_TOGGLE_WATCH,
+                            zh ? L"监听批处理/终端退出" : L"Watch Terminal / Batch Exit");
+                AppendMenuW(menu, auto_flags, ID_TRAY_TOGGLE_AUTOSTART,
+                            zh ? L"开机自启动" : L"Launch at Startup");
                 AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-                AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"退出 A-OH (&Q)");
+                AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT,
+                            zh ? L"退出 A-OH (&Q)" : L"Quit A-OH (&Q)");
 
                 SetForegroundWindow(hwnd);
                 TrackPopupMenu(menu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, nullptr);

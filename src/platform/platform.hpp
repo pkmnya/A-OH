@@ -24,6 +24,7 @@ struct TrayCallbacks {
     std::function<void()> on_toggle_watch;
     std::function<bool()> is_autostart_enabled;
     std::function<void()> on_toggle_autostart;
+    std::function<bool()> is_zh;
     std::function<void()> on_quit;
 };
 
