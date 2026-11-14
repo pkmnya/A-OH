@@ -49,7 +49,7 @@ if(WIN32)
         ws2_32 comdlg32 shell32 advapi32 user32 gdi32
     )
     if(MINGW)
-        target_link_options(a-oh PRIVATE -municode -static-libgcc -static-libstdc++)
+        target_link_options(a-oh PRIVATE -municode -static -static-libgcc -static-libstdc++)
     endif()
 
     # Windowless tray/autostart launcher executable (no console flash)
@@ -61,7 +61,7 @@ if(WIN32)
         ws2_32 comdlg32 shell32 advapi32 user32 gdi32
     )
     if(MINGW)
-        target_link_options(a-oh-tray PRIVATE -municode -mwindows -static-libgcc -static-libstdc++)
+        target_link_options(a-oh-tray PRIVATE -municode -mwindows -static -static-libgcc -static-libstdc++)
     endif()
 elseif(APPLE)
     target_link_libraries(a-oh PRIVATE
